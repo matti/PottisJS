@@ -6,9 +6,9 @@
 * Licensed under the Poetic License (http://genaud.net/2005/10/poetic-license/)
 *  (c) 2005 Alexander E Genaud
 * 
-*  This work ‘as-is’ we provide.
+*  This work 'as-is' we provide.
 *  No warranty express or implied.
-*  We’ve done our best,
+*  We've done our best,
 *  to debug and test.
 *  Liability for damages denied.
 * 
@@ -20,13 +20,13 @@
 *
 */
 
-var Pottis = function(targetSVG) {
+var Pottis = function(targetSVG, startCallback) {
 	this.svgNS = "http://www.w3.org/2000/svg";
 	this.xlinkNS = "http://www.w3.org/1999/xlink";
 	this.targetSVG = targetSVG;
 	this.targetDocument = targetSVG.ownerDocument;
 
-	this.dragTarget = null;	
+	this.dragTarget = null;
 	this.mouse = null;
 	this.downMouse = null;
 	this.prevMouse = null;
@@ -38,11 +38,17 @@ var Pottis = function(targetSVG) {
 
 	var _pottis = this;
 
-	// INIT global mouse handlers {down move up}
-
+	// INIT global mouse handlers
+	
 	this.targetDocument.onmousedown = function(e) {
 		_pottis.downMouse = _pottis.prevMouse = _pottis.getMouseCoords(e, targetSVG);
-	
+
+		// call the start callback on first click
+		if (startCallback) {
+			startCallback(e);
+			startCallback = null;
+		}
+
 		// route to the addDrag event handler
 		if (e.target.pottis && e.target.pottis.mousedown)
 			e.target.pottis.mousedown(e);
@@ -81,20 +87,13 @@ var Pottis = function(targetSVG) {
 		e.preventDefault();
 	};
 
-	this.targetDocument.onmouseover = function(e) {		
-		if (e.target.pottis && e.target.pottis.onmouseover)
-			e.target.pottis.onmouseover(e);
-				
-		e.preventDefault();
-	};
-
 
 	// TODO: maybe elem or element, instead of shape?
 	this.shape = function(elem, attr) {
 		var shape = this.targetDocument.createElementNS(this.svgNS, elem);
 
-		for (var a in attr) {			
-			shape.setAttribute(a, attr[a]);
+		for (var a in attr) {
+			if (attr[a]) shape.setAttribute(a, attr[a]);
 		}
 
 		this._initTransforms(shape);
@@ -114,15 +113,13 @@ var Pottis = function(targetSVG) {
 	}
 
 	this.use = function(defsID, useID, x, y) {
-		var use = this.targetDocument.createElementNS(this.svgNS, "use");
+		var use = this.shape("use", { id: useID } );
 
-		use.setAttribute('id', useID);
 		use.setAttributeNS(this.xlinkNS, 'xlink:href', '#' + defsID);
 
 		// NOTE: any x or y attributes would mess up with our transformations,
 		// and any previous transformations will be cleared here
-		this.translate(use, x, y)
-		this.targetSVG.appendChild(use);
+		this.translate(use, x, y);
 		
 		return use;
 	}
@@ -148,7 +145,7 @@ var Pottis = function(targetSVG) {
 	}
 
 	this.addMouseOver = function(element, callback) {
-		element.pottis.onmouseover = function(e) {
+		element.onmouseover = function(e) {
 			callback(e);
 		}
 	}
@@ -165,7 +162,9 @@ var Pottis = function(targetSVG) {
 
 	this.addRightClick = function(elem, callback) {
 		elem.onmouseup = function(e) {
-			if (e.button == 2) callback(e);
+			if (e.button == 2) {
+				callback(e);
+			}
 		}
 	}
 	
@@ -209,6 +208,11 @@ var Pottis = function(targetSVG) {
 				_pottis.mouseup = null;
 			}
 		}
+	}
+
+	// removeDrag(element)
+	this.removeDrag = function(elem) {
+		elem.onmousedown = null;
 	}
 
 	// addScale(handle, [target], [callback])
@@ -309,9 +313,11 @@ var Pottis = function(targetSVG) {
 
 		// we need a separate resetting translate for scale
 		var bb = elem.getBBox();
-		elem.pottis.stx = bb.x + (cx ? cx : (bb.width / 2));
-		elem.pottis.sty = bb.y + (cy ? cy : (bb.height / 2));
-
+		if (bb) {
+			elem.pottis.stx = bb.x + (cx!=undefined ? cx : (bb.width / 2));
+			elem.pottis.sty = bb.y + (cy!=undefined ? cy : (bb.height / 2));
+		}
+		
 		elem.pottis.sx = sx;
 		elem.pottis.sy = sy ? sy : sx;
 
@@ -333,8 +339,8 @@ var Pottis = function(targetSVG) {
 		this._initTransforms(elem);
 		
 		var bb = elem.getBBox();
-		elem.pottis.cx = bb.x + (cx ? cx : (bb.width / 2));
-		elem.pottis.cy = bb.y + (cy ? cy : (bb.height / 2));
+		elem.pottis.cx = bb.x + (cx!=undefined ? cx : (bb.width / 2));
+		elem.pottis.cy = bb.y + (cy!=undefined ? cy : (bb.height / 2));
 		elem.pottis.a = a;
 
 		this._applyTransforms(elem);
@@ -358,27 +364,31 @@ var Pottis = function(targetSVG) {
 		);
 	}
 	
-	// pottis.image(url, imageId, [x], [y])
-	this.image = function(url, imageId, x, y) {
-		var img = new Image();
-        img.src = url;
-        
-		// must be careful with the namespaces
-		var svgimg = document.createElementNS(this.svgNS, "image");
-
-		svgimg.setAttribute('id', imageId);
-		svgimg.setAttributeNS(this.xlinkNS, 'xlink:href', url);
-
-		svgimg.setAttribute('x', x ? x : 0);
-		svgimg.setAttribute('y', y ? y : 0);
-		svgimg.setAttribute('width', img.width);
-		svgimg.setAttribute('height', img.height);
-		
-		this.targetSVG.appendChild(svgimg);
-		
-		return svgimg;
+	
+	this.text = function(textContent, textId, x, y) {
+		var text = pottis.shape("text", { x: x, y: y });
+		text.textContent = 'drag "wheels" onto the "car"!';
 	}
 
+	// pottis.image(url, imageId, [x], [y])
+	this.image = function(url, imageId, x, y) {
+		var htmlimg = new Image();
+		htmlimg.src = url;
+      
+		// var svgimg = document.createElementNS(this.svgNS, "image");
+		var svgimg = this.shape("image", { id: imageId });
+		svgimg.setAttributeNS(this.xlinkNS, 'xlink:href', url);
+		svgimg.setAttribute('x', x ? x : 0);
+		svgimg.setAttribute('y', y ? y : 0);
+
+		// width and height are only available after the image is loaded :/
+		htmlimg.onload = function() {
+			svgimg.setAttribute('width', htmlimg.width);
+			svgimg.setAttribute('height', htmlimg.height);
+		}
+
+		return svgimg;
+	}
 
 	this.importSVG = function(svgfile, groupid) {
 		//<object id="longcatbasket" type="image/svg+xml" data="longcatbasket_defs.svg" width="900" height="600">
@@ -413,6 +423,8 @@ var Pottis = function(targetSVG) {
 			}
 
 			// the object is not needed anymore ^____^
+			// TODO: how to make the page load finish? it does finish, if we don't remove the obj element
+			//obj.contentDocument.removeChild(obj.contentDocument.documentElement);
 			obj.parentNode.removeChild(obj);
 		}
 		
@@ -454,6 +466,10 @@ var Pottis = function(targetSVG) {
 		this.mouseText.setAttribute("x", mouse.x);
 		this.mouseText.setAttribute("y", mouse.y);
 		this.mouseText.textContent = "(" + mouse.x + "," + mouse.y + ")";
+	}
+	
+	this.randomInt = function(max) {
+		return Math.floor(Math.random() * max);
 	}
 	
 /*
