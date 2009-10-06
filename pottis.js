@@ -1,5 +1,5 @@
 /*
-* PottisJS 0.0.1 - JavaScript SVG Interaction Library
+* PottisJS 0.0.2 - JavaScript SVG Interaction Library
 * by Samuli Kaipiainen and Matti Paksula
 *    Kuje Research Group
 *
@@ -142,6 +142,14 @@ var Pottis = function(targetSVG, startCallback) {
 
 	this.moveToBack = function(elem) {
 		this.targetSVG.insertBefore(elem, this.targetSVG.firstChild);
+	}
+
+	this.moveAbove = function(elem, peer) {
+		this.targetSVG.insertBefore(elem, peer.nextSibling);
+	}
+
+	this.moveBelow = function(elem, peer) {
+		this.targetSVG.insertBefore(elem, peer);
 	}
 
 	this.addMouseOver = function(element, callback) {
@@ -339,8 +347,11 @@ var Pottis = function(targetSVG, startCallback) {
 		this._initTransforms(elem);
 		
 		var bb = elem.getBBox();
-		elem.pottis.cx = bb.x + (cx!=undefined ? cx : (bb.width / 2));
-		elem.pottis.cy = bb.y + (cy!=undefined ? cy : (bb.height / 2));
+		if (bb) {
+			elem.pottis.cx = bb.x + (cx!=undefined ? cx : (bb.width / 2));
+			elem.pottis.cy = bb.y + (cy!=undefined ? cy : (bb.height / 2));
+		}
+
 		elem.pottis.a = a;
 
 		this._applyTransforms(elem);
@@ -367,7 +378,7 @@ var Pottis = function(targetSVG, startCallback) {
 	
 	this.text = function(textContent, textId, x, y) {
 		var text = pottis.shape("text", { x: x, y: y });
-		text.textContent = 'drag "wheels" onto the "car"!';
+		text.textContent = textContent;
 	}
 
 	// pottis.image(url, imageId, [x], [y])
@@ -468,7 +479,7 @@ var Pottis = function(targetSVG, startCallback) {
 		this.mouseText.textContent = "(" + mouse.x + "," + mouse.y + ")";
 	}
 	
-	this.randomInt = function(max) {
+	this.randomInt = function(max) {
 		return Math.floor(Math.random() * max);
 	}
 	
