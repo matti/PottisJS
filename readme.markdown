@@ -2,7 +2,9 @@
 
 JavaScript Library for SVG Interaction
 
-See [homepage](http://www.pottisjs.com) for examples, tutorials and documentation.
+See the [homepage](https://pottisjs.herokuapp.com) for examples, tutorials and documentation.
+
+I'd highly recommend the [longcat generator basket example](https://pottisjs.herokuapp.com/examples/longcat/)
 
 
 
